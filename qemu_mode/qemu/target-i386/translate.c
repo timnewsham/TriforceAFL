@@ -8232,12 +8232,37 @@ static target_ulong doneWork(target_ulong val)
     exit(val); /* exit forkserver child */
 }
 
+static target_ulong saveData(CPUArchState *env, target_ulong ptr, target_ulong sz)
+{
+    target_ulong retsz;
+    FILE *fp;
+
+    //printf("pid %d: saveData %lx %lx\n", getpid(), ptr, sz);fflush(stdout);
+    const char *fn = "aflSave"; // XXX cmd line arg...
+    fp = fopen(fn, "wb");
+    if(!fp) {
+         perror(fn);
+         return -1;
+    }
+    retsz = 0;
+    while(retsz < sz) {
+        char ch = cpu_ldub_data(env, ptr);
+        if(fwrite(&ch, 1, 1, fp) != 1)
+            break;
+        retsz ++;
+        ptr ++;
+    }
+    fclose(fp);
+    return retsz;
+}
+
 target_ulong helper_aflCall(CPUArchState *env, target_ulong code, target_ulong a0, target_ulong a1) {
     switch(code) {
     case 1: return startForkserver(env, a0);
     case 2: return getWork(env, a0, a1);
     case 3: return startWork(env, a0);
     case 4: return doneWork(a0);
+    case 5: return saveData(env, a0, a1);
     default: return -1;
     }
 }
